@@ -5,13 +5,16 @@ namespace RWDrizzleRenderBridge {
 	public class Program {
 		private static void Main(string[] args) {
 
-			if (HasArg(args, "-h")) {
+			bool help = HasArg(args, "-h");
+			if (help) {
 				Console.ForegroundColor = ConsoleColor.Green;
-				Console.WriteLine("Drizzle Render Bridge Info");
+				Console.Write("Drizzle Render Bridge Info ");
+				
+				Console.WriteLine();
 				Console.ForegroundColor = ConsoleColor.White;
 				Console.WriteLine("Behavioral Notice: The application will prompt you for your level editor's location,");
 				Console.WriteLine("and operates with the expectation that you are using this alongside a level editor.");
-				Console.WriteLine("If you need to run this without an editor's file hierarchy, consider just using Drizzle directly.");
+				Console.WriteLine("If you need to run this without an editor, consider just using Drizzle directly.");
 				Console.WriteLine();
 				Console.ForegroundColor = ConsoleColor.Green;
 				Console.WriteLine("Drizzle Render Bridge Command Line Args");
@@ -28,18 +31,23 @@ namespace RWDrizzleRenderBridge {
 				Console.WriteLine();
 				*/
 				Console.ForegroundColor = ConsoleColor.Yellow;
-				Console.Write("(any argument not preceeded by a - symbol) ");
+				Console.Write("[any text] ");
 				Console.ForegroundColor = ConsoleColor.White;
 				Console.WriteLine(": Treated as a file to convert.");
 				Console.WriteLine();
 				Console.WriteLine("I haven't implemented anything else :(");
-				return;
+				Console.WriteLine();
+				Console.WriteLine();
 			}
 
 			bool useVerboseDrizzle = true;// HasArg(args, "-verbose");
 
 			Console.ForegroundColor = ConsoleColor.Green;
-			Console.WriteLine("Welcome to the Drizzle Render Bridge. Run with \"-h\" for arguments.");
+			Console.Write("Welcome to the Drizzle Render Bridge. ");
+			if (!help) Console.Write("Run with \"-h\" for help.");
+			
+			Console.WriteLine();
+
 			FileInfo drizzle = GetOrPromptForDrizzle();
 			DirectoryInfo levelEditor = GetOrPromptForLevelEditor();
 
@@ -48,6 +56,8 @@ namespace RWDrizzleRenderBridge {
 				if (arg.StartsWith('-')) continue;
 				jobs.Add(new FileInfo(arg));
 			}
+
+			Console.WriteLine();
 
 			do {
 				FileInfo txt;
@@ -90,8 +100,15 @@ namespace RWDrizzleRenderBridge {
 						Console.ForegroundColor = ConsoleColor.Green;
 						Console.WriteLine("Copying...");
 						DirectoryInfo levels = new DirectoryInfo(Path.Combine(drizzle.Directory!.FullName, "Data", "Levels"));
+						string inputFileNoExt = StripExtension(txt).ToLower();
 						IEnumerable<FileInfo> relevant = levels.GetFiles().Where(file => {
-							return file.Name.StartsWith(StripExtension(txt));
+							string nameNoExt = StripExtension(file).ToLower();
+							if (nameNoExt == inputFileNoExt) {
+								return true;
+							} else if (file.Extension.Equals(".png", StringComparison.InvariantCultureIgnoreCase)) {
+								return Regex.IsMatch(file.Name.ToLower(), @$"({Regex.Escape(inputFileNoExt)})_\d+.png");
+							}
+							return false;
 						});
 
 						bool optionAppliesToAll = false;
@@ -190,13 +207,29 @@ namespace RWDrizzleRenderBridge {
 			Console.WriteLine("To copy from a command prompt, select the text, and press the right mouse button. This will copy the selected text.");
 			Console.ForegroundColor = ConsoleColor.White;
 			Console.WriteLine("Click on the top-most release, then find \"Drizzle.base.Release.win-x64.zip\" and click on that. ");
-			Console.WriteLine("You can get the fork here:");
-			Console.ForegroundColor = ConsoleColor.Blue;
+			Console.Write("You can get the fork here: ");
+			Console.ForegroundColor = ConsoleColor.Cyan;
 			Console.WriteLine("https://github.com/SlimeCubed/Drizzle/releases");
 			FileInfo drizzle = ReadFile("Please paste the file path to Drizzle.ConsoleApp.exe...");
+			while (drizzle.Name.ToLower() != "drizzle.consoleapp.exe") {
+				Console.ForegroundColor = ConsoleColor.Red;
+				Console.Write("Are you sure this is correct? Usually, the console app is named ");
+				Console.ForegroundColor = ConsoleColor.Yellow;
+				Console.Write("Drizzle.ConsoleApp.exe");
+				Console.ForegroundColor = ConsoleColor.Red;
+				Console.WriteLine(", but you input");
+				Console.Write("a file named ");
+				Console.ForegroundColor = ConsoleColor.Yellow;
+				Console.WriteLine(drizzle.Name);
+				bool @continue = PromptYN($"Continue with this file ({drizzle.Name}) anyway?");
+				if (@continue) break;
+				drizzle = ReadFile("Please paste the file path to Drizzle.ConsoleApp.exe...");
+			}
 			File.WriteAllText(data.FullName, drizzle.FullName);
 			Console.ForegroundColor = ConsoleColor.Magenta;
-			Console.WriteLine("A new file has been created in the same directory as this exe named drizzleconsole.txt to store this path for the future.");
+			Console.WriteLine("A new file has been created in the same directory as this exe named drizzleconsole.txt");
+			Console.WriteLine();
+			Console.WriteLine();
 			return drizzle;
 		}
 
@@ -222,16 +255,40 @@ namespace RWDrizzleRenderBridge {
 			FileInfo data = new FileInfo(@".\editorlocation.txt");
 			if (data.Exists) {
 				string path = File.ReadAllText(data.FullName);
-				DirectoryInfo exe = new DirectoryInfo(path);
-				if (exe.Exists) {
-					return exe;
+				DirectoryInfo editorDir = new DirectoryInfo(path);
+				if (editorDir.Exists) {
+					return editorDir;
 				}
 			}
 
-			DirectoryInfo lvEditor = ReadDirectory("Please paste the folder path to your editor. It should contain a LevelEditorProjects folder and Levels folder...");
+			DirectoryInfo lvEditor = ReadDirectory("Please paste the folder path to your level editor (such as the Community Editor folder).\nIt should contain a LevelEditorProjects folder and Levels folder...");
+			do {
+				bool levelsSubdirExists = Directory.Exists(Path.Combine(lvEditor.FullName, "Levels"));
+				bool projectsSubdirExists = Directory.Exists(Path.Combine(lvEditor.FullName, "LevelEditorProjects"));
+				if (levelsSubdirExists && projectsSubdirExists) break;
+
+				Console.ForegroundColor = ConsoleColor.Red;
+				Console.Write("Are you sure this is correct? Usually, level editors contain a ");
+				Console.ForegroundColor = ConsoleColor.Yellow;
+				Console.Write("Levels ");
+				Console.ForegroundColor = ConsoleColor.Red;
+				Console.WriteLine("folder");
+				Console.Write("and a ");
+				Console.ForegroundColor = ConsoleColor.Yellow;
+				Console.Write("LevelEditorProjects ");
+				Console.ForegroundColor = ConsoleColor.Red;
+				Console.WriteLine("folder.");
+				Console.WriteLine("Either one or both of these folders does not exist in the folder you put here.");
+
+				bool @continue = PromptYN($"Continue with this folder ({lvEditor.Name}) anyway?");
+				if (@continue) break;
+				lvEditor = ReadDirectory("Please paste the folder path to your level editor (such as the Community Editor folder).\nIt should contain a LevelEditorProjects folder and Levels folder...");
+			} while (true);
 			File.WriteAllText(data.FullName, lvEditor.FullName);
 			Console.ForegroundColor = ConsoleColor.Magenta;
-			Console.WriteLine("A new file has been created in the same directory as this exe named editorlocation.txt to store this path for the future.");
+			Console.WriteLine("A new file has been created in the same directory as this exe named editorlocation.txt");
+			Console.WriteLine();
+			Console.WriteLine();
 			return lvEditor;
 		}
 
@@ -309,6 +366,31 @@ namespace RWDrizzleRenderBridge {
 			} while (true);
 		}
 
+		private static bool PromptYN(string prompt) {
+			Console.ForegroundColor = ConsoleColor.Green;
+			Console.WriteLine(prompt);
+			Console.ForegroundColor = ConsoleColor.Yellow;
+			Console.Write("(Press: [");
+			Console.ForegroundColor = ConsoleColor.Cyan;
+			Console.Write("Y");
+			Console.ForegroundColor = ConsoleColor.Yellow;
+			Console.Write("]es or [");
+			Console.ForegroundColor = ConsoleColor.Cyan;
+			Console.Write("N");
+			Console.ForegroundColor = ConsoleColor.Yellow;
+			Console.WriteLine("]o)");
+			do {
+				char c = Console.ReadKey(true).KeyChar;
+				if (c == 'y') {
+					return true;
+				} else if (c == 'n') {
+					return false;
+				} else {
+					Console.Beep();
+				}
+			} while (true);
+		}
+
 		/// <summary>
 		/// Reads a file path from the command line, ensuring that the file exists. Trims leading and trailing quotes from the input if needed, but otherwise
 		/// treats the entire input string as one singular filepath, so spaces are allowed.
@@ -364,7 +446,7 @@ namespace RWDrizzleRenderBridge {
 					DirectoryInfo file = new DirectoryInfo(TrimQuotes(data));
 					if (!file.Exists) {
 						Console.ForegroundColor = ConsoleColor.Red;
-						Console.WriteLine("The provided directory does not exist.");
+						Console.WriteLine("The provided folder does not exist.");
 						continue;
 					}
 					return file;
