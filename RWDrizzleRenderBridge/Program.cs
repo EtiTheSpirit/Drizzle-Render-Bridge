@@ -51,10 +51,10 @@ namespace RWDrizzleRenderBridge {
 			FileInfo drizzle = GetOrPromptForDrizzle();
 			DirectoryInfo levelEditor = GetOrPromptForLevelEditor();
 
-			List<FileInfo> jobs = new List<FileInfo>();
+			Queue<FileInfo> jobs = new Queue<FileInfo>();
 			foreach (string arg in args) {
 				if (arg.StartsWith('-')) continue;
-				jobs.Add(new FileInfo(arg));
+				jobs.Enqueue(new FileInfo(arg));
 			}
 
 			Console.WriteLine();
@@ -64,8 +64,7 @@ namespace RWDrizzleRenderBridge {
 				if (jobs.Count == 0) {
 					txt = ReadFile("Please paste the file path of your room (<editor>/LevelEditorProjects/.../RG_WHATEVER.txt)...");
 				} else {
-					txt = jobs[0];
-					jobs.RemoveAt(0);
+					txt = jobs.Dequeue();
 				}
 				bool hasRemainingJob = jobs.Count > 0;
 				string relative = Path.GetRelativePath(levelEditor.FullName, txt.FullName);
