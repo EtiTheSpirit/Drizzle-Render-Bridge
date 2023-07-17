@@ -7,6 +7,8 @@ The Drizzle Render Bridge's purpose is to easily delegate out the task of render
 
 ## How do I set it up?
 
+Download it [here](https://github.com/EtiTheSpirit/Drizzle-Render-Bridge/releases/tag/1.0.0) (see `RWDrizzleRenderBridge.zip`).
+
 Start by running the .exe file. It will prompt you to give it `Drizzle.ConsoleApp.exe`. Consider using [SlimeCubed's fork of Drizzle](https://github.com/SlimeCubed/Drizzle/releases) (which is required if you are using Community Editor anyway). 
 
 When prompted for the location of Drizzle...
